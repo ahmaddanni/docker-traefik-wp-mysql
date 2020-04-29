@@ -1,0 +1,60 @@
+version: '2'
+
+services:
+    traefik:
+        image: traefik
+        container_name: "traefik_site"
+        command: --web --docker --docker.domain=docker.localhost --logLevel=DEBUG
+        ports:
+            - "80:80"
+            - "8080:8080"
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - /dev/null:/traefik.toml
+
+    wordpress:
+        image: wordpress
+        container_name: "wordpress_site"
+        labels:
+            - "traefik.frontend.rule=Host:www.site.net,Host:site.net"
+            - "traefik.docker.network=traefik"
+        environment:
+            - WORDPRESS_DB_HOST=mysql:3306
+            - WORDPRESS_DB_USER=wp_db_u
+            - WORDPRESS_DB_PASSWORD=1234567
+            - WORDPRESS_DB_NAME=wp_db
+        volumes:
+            - wordpress-data:/var/www/html
+        networks:
+            - traefik
+            - back-end
+        links:
+            - mysql
+
+    mysql:
+        image: mysql:5.7
+        container_name: "mysql_site"
+        labels:
+            - "traefik.enable=false"
+        environment:
+            - MYSQL_ROOT_PASSWORD=1234567
+            - MYSQL_DATABASE=wp_db
+            - MYSQL_USER=wp_db_u
+            - MYSQL_PASSWORD=1234567
+        volumes:
+            - mysql-data:/var/lib/mysql
+        networks:
+            - back-end
+
+volumes:
+    wordpress-data:
+        driver: local
+    mysql-data:
+        driver: local
+
+networks:
+    traefik:
+        external:
+            name: traefik
+    back-end:
+        driver: bridge
